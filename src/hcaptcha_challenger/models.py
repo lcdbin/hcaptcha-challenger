@@ -257,7 +257,7 @@ SCoTModelType = Union[
     ],
 ]
 
-DEFAULT_SCOT_MODEL: SCoTModelType = "gemini-2.5-pro"
+DEFAULT_SCOT_MODEL: SCoTModelType = "gemini-3-pro-preview"
 
 FastShotModelType = Union[
     str,
@@ -510,10 +510,10 @@ class PluggableUserPrompt(BaseModel):
 
 class CoordinateGrid(BaseModel):
     x_line_space_num: int | None = Field(
-        default=15, description="Number of horizontal lines", ge=3, le=30
+        default=8, description="Number of horizontal lines", ge=3, le=30
     )
     y_line_space_num: int | None = Field(
-        default=20, description="Number of vertical lines", ge=3, le=30
+        default=8, description="Number of vertical lines", ge=3, le=30
     )
     color: str | None = Field(
         default="gray", description="The color of the auxiliary line, supports RGB and hexadecimal"

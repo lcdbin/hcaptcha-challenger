@@ -49,7 +49,17 @@ def _create_adaptive_contrast_grid(
 
     cmap_name = 'hot' if avg_brightness < 0.5 else 'cool'
 
-    fig, ax = plt.subplots(figsize=(10, 10))
+    # Calculate figsize to match bbox aspect ratio (prevents image distortion)
+    # This is critical for accurate coordinate mapping on any DPI setting
+    aspect_ratio = width / height
+    base_size = 10
+    if aspect_ratio > 1:
+        figsize = (base_size, base_size / aspect_ratio)
+    else:
+        figsize = (base_size * aspect_ratio, base_size)
+
+    # Fix for macOS Retina: use explicit dpi=100 to prevent 2x scaling
+    fig, ax = plt.subplots(figsize=figsize, dpi=100)
 
     ax.imshow(img, extent=(x, x + width, y + height, y))
 
@@ -109,11 +119,30 @@ def _create_adaptive_contrast_grid(
     # Get the RGBA buffer from the figure
     buf = fig.canvas.buffer_rgba()  # type: ignore[attr-defined]
     img_with_grid = np.frombuffer(buf, dtype=np.uint8)
-    img_with_grid = img_with_grid.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+
+    # Handle macOS Retina 2x DPI scaling
+    nominal_w, nominal_h = fig.canvas.get_width_height()
+    expected_size = nominal_w * nominal_h * 4
+    actual_size = img_with_grid.size
+
+    if actual_size == expected_size * 4:
+        # Retina 2x scaling detected (2x width * 2x height = 4x pixels)
+        img_with_grid = img_with_grid.reshape(nominal_h * 2, nominal_w * 2, 4)
+    else:
+        # Normal DPI
+        img_with_grid = img_with_grid.reshape(nominal_h, nominal_w, 4)
 
     plt.close(fig)
 
     img_with_grid = cv2.cvtColor(img_with_grid, cv2.COLOR_RGBA2RGB)
+
+    # Resize to reduce file size and token usage (important for API efficiency)
+    h, w = img_with_grid.shape[:2]
+    max_dim = 1200
+    if max(h, w) > max_dim:
+        scale = max_dim / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        img_with_grid = cv2.resize(img_with_grid, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     return img_with_grid
 
@@ -169,8 +198,18 @@ def create_coordinate_grid(
     else:
         x, y, width, height = bbox
 
+    # Calculate figsize to match bbox aspect ratio (prevents image distortion)
+    # This is critical for accurate coordinate mapping on any DPI setting
+    aspect_ratio = width / height
+    base_size = 10
+    if aspect_ratio > 1:
+        figsize = (base_size, base_size / aspect_ratio)
+    else:
+        figsize = (base_size * aspect_ratio, base_size)
+
     # Create figure with appropriate size
-    fig, ax = plt.subplots(figsize=(10, 10))
+    # Fix for macOS Retina: use explicit dpi=100 to prevent 2x scaling
+    fig, ax = plt.subplots(figsize=figsize, dpi=100)
 
     # Display the image
     ax.imshow(img, extent=(x, x + width, y + height, y))  # Note the y-axis inversion
@@ -220,12 +259,31 @@ def create_coordinate_grid(
     # Get the RGBA buffer from the figure
     buf = fig.canvas.buffer_rgba()  # type: ignore[attr-defined]
     img_with_grid = np.frombuffer(buf, dtype=np.uint8)
-    img_with_grid = img_with_grid.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+
+    # Handle macOS Retina 2x DPI scaling
+    nominal_w, nominal_h = fig.canvas.get_width_height()
+    expected_size = nominal_w * nominal_h * 4
+    actual_size = img_with_grid.size
+
+    if actual_size == expected_size * 4:
+        # Retina 2x scaling detected (2x width * 2x height = 4x pixels)
+        img_with_grid = img_with_grid.reshape(nominal_h * 2, nominal_w * 2, 4)
+    else:
+        # Normal DPI
+        img_with_grid = img_with_grid.reshape(nominal_h, nominal_w, 4)
 
     # Close the figure to free memory
     plt.close(fig)
 
     # Convert RGBA to RGB
     img_with_grid = cv2.cvtColor(img_with_grid, cv2.COLOR_RGBA2RGB)
+
+    # Resize to reduce file size and token usage (important for API efficiency)
+    h, w = img_with_grid.shape[:2]
+    max_dim = 1200
+    if max(h, w) > max_dim:
+        scale = max_dim / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        img_with_grid = cv2.resize(img_with_grid, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     return img_with_grid
